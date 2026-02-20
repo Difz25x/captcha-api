@@ -1,0 +1,39 @@
+[+] deviceFingerprint: -7adf73b1
+REQUEST -> 200 OK
+[+] id:    85504c44-cc7c-41cd-9eb7-c6c620363b45
+[+] mode:  puzzle
+[+] Stages: 1
+    Stage 0: "Click the largest shape."  (8 shapes)
+
+  [Stage 0] "Click the largest shape."
+  target_type=None  target_color=None  shapes=8  want_smallest=False
+    [0] triangle     orange   area=  10284  hull=  10500  v=3  c=0.59  OK
+    [1] triangle     blue     area=   5223  hull=   5370  v=3  c=0.62  OK
+    [2] triangle     red      area=   8358  hull=   8570  v=3  c=0.60  OK
+    [3] circle       blue     area=   3552  hull=   3590  v=4  c=0.91  OK
+    [4] star         purple   area=   3742  hull=   6016  v=5  c=0.36  OK
+    [5] circle       orange   area=  14876  hull=  14986  v=4  c=0.90  OK
+    [6] hexagon      orange   area=   5140  hull=   5225  v=6  c=0.85  OK
+    [7] circle       orange   area=  25471  hull=  25596  v=4  c=0.91  OK
+  [Filter] 8/8 candidates
+  -> Answer index: 7  type=circle  color=orange  area=25471  conf=1.00
+
+[+] Answers: ['7']
+
+[Telemetry] dwellMs=16093.3  moves=271  velocityAvg=0.9485  moveDensity=59.3848
+[Path]      clickTimestamp=16088.8  durationMs=101.3  totalDist=0
+
+Waiting 1500 ms ...
+
+[PAYLOAD] {"id":"85504c44-cc7c-41cd-9eb7-c6c620363b45","answers":["7"],"path":{"moves":1,"totalDist":0,"durationMs":101.3,"avgSpeed":0,"clickTimestamp":16088.8,"timeToFirstClick":16088.8},"telemetry":{"dwellMs":16093.3,"moves":271,"velocityVar":2.978043890176106,"velocityMedian":0.520174576337846,"velocityAvg":0.948495606962699,"velocityMin":0.000564912501474,"velocityMax":14.673446425280627,"velocityP25":0.181120184912321,"velocityP75":1.28643269753907,"directionChanges":1,"keypresses":0,"speedSamples":271,"moveDensity":59.384781924553025},"deviceFingerprint":"-7adf73b1"}
+
+VERIFY -> 200 OK
+{
+  "data": {
+    "expiresIn": 3599,
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiZ1VUVDZTMTJGTzYzNm1pOWtXY2lGNGhaMHRaeXc5OFpKcFJDUnlGa2Y3dyIsImIiOiJIZE9zenF0LXFIbEZDSkhaU2ZJbkdUZmNyWE0zSVF2VlF1RlRaS3JXNFowIiwiZXhwIjoxNzcxNTY0MzM2LCJpYXQiOjE3NzE1NjA3MzYsImlwIjoiMTgwLjI1Mi42MS4xNTQiLCJpc3MiOiJnYXRld2F5c2VudHJ5IiwianRpIjoiNDJmZTYzZmQtMDMzZS00ZTA3LTljNWYtYmIzMTg5YWJkNzI0Iiwic3ViIjoicG93X2F1dGgifQ.poSCkDqp87qgFAtiT1_3mn9yXNq1U1McR6nKKKqa8xg"
+  },
+  "success": true
+}
+
+OK  CAPTCHA SOLVED!

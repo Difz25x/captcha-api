@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.git/
+.env
+batch_logs/
+debug_captchas/
+debug_captchas_by_shape/
+run.log
+fine_tuning_dataset.jsonl
+payload_verify.json
