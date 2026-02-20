@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gateway Solver | Premium Captcha Solving</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="blob-bg"></div>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <h1>GATEWAY<span>SOLVER</span></h1>
+            </div>
+            <div class="status-badge" id="api-status">
+                <span class="status-dot"></span> API ONLINE
+            </div>
+        </header>
+
+        <main class="glass-card">
+            <div class="card-header">
+                <h2>API Access Management</h2>
+                <p>Enter your premium or free key to begin solving.</p>
+            </div>
+
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="api-key">API KEY</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="api-key" placeholder="Enter your key here..."
+                            value="{{ api_key or '' }}">
+                        <button id="save-key" class="btn-primary">SAVE</button>
+                        <button id="clear-key" class="btn-outline">CLEAR</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>TIER</h3>
+                    <div class="value" id="key-tier">UNKNOWN</div>
+                </div>
+                <div class="info-card">
+                    <h3>HWID LOCK</h3>
+                    <div class="value" id="hwid-status">INACTIVE</div>
+                </div>
+            </div>
+
+            <div class="usage-preview">
+                <h3>USAGE DOCS</h3>
+                <div class="code-block">
+                    <pre><code id="usage-code">GET /solve?key=YOUR_KEY</code></pre>
+                </div>
+                <p class="hint" id="delay-hint">Free keys have a 3-4s delay. Upgrade for instant results.</p>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Gateway Solver. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        const saveBtn = document.getElementById('save-key');
+        const clearBtn = document.getElementById('clear-key');
+        const keyInput = document.getElementById('api-key');
+        const tierDisplay = document.getElementById('key-tier');
+        const hwidDisplay = document.getElementById('hwid-status');
+        const usageCode = document.getElementById('usage-code');
+        const delayHint = document.getElementById('delay-hint');
+
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                let date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
+        }
+
+        function getCookie(name) {
+            let nameEQ = name + "=";
+            let ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
+        saveBtn.addEventListener('click', () => {
+            const key = keyInput.value.trim();
+            if (key) {
+                setCookie('api_key', key, 30);
+                location.reload();
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            setCookie('api_key', '', -1);
+            location.reload();
+        });
+
+        // Simple check to show current key status if present
+        const currentKey = getCookie('api_key');
+        if (currentKey) {
+            usageCode.innerText = `GET /solve?key=${currentKey}`;
+            fetch('/validate')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        tierDisplay.innerText = data.type.toUpperCase();
+                        tierDisplay.className = 'value ' + data.type;
+                        hwidDisplay.innerText = data.hwid_locked ? 'LOCKED' : 'NOT LOCKED';
+                        hwidDisplay.className = 'value ' + (data.hwid_locked ? 'locked' : 'unlocked');
+
+                        if (data.type === 'paid') {
+                            delayHint.innerText = 'Paid key detected. 0ms artificial delay.';
+                            delayHint.style.color = 'var(--success)';
+                        }
+                    } else {
+                        tierDisplay.innerText = 'INVALID';
+                        tierDisplay.style.color = '#ef4444';
+                    }
+                })
+                .catch(err => {
+                    console.error('Validation failed:', err);
+                });
+        }
+    </script>
+</body>
+
+</html>

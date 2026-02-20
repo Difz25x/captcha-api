@@ -285,6 +285,9 @@ def solve_stage(stage: Dict[str, Any], stage_idx: int) -> str:
         if os.environ.get("COLLECT_DATASET"):
             visual_verification.save_to_dataset(b64, vis, instruction)
 
+    # Only save images if explicitly requested via env var
+    if os.environ.get("DEBUG_SAVE") == "1":
+        os.makedirs("debug_captchas", exist_ok=True)
         try:
             import base64 as _b64
             raw      = b64.split(",")[1] if "," in b64 else b64
