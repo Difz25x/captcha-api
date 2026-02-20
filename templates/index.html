@@ -63,6 +63,48 @@
             </div>
         </main>
 
+        <!-- ADMIN DASHBOARD (Hidden by default) -->
+        <div id="admin-section" class="glass-card full-width" style="display: none; margin-top: 2rem;">
+            <div class="card-header">
+                <h2>ADMIN DASHBOARD</h2>
+                <p>Manage API Keys & Access</p>
+            </div>
+
+            <div class="admin-controls">
+                <div class="create-key-panel">
+                    <h3>Create Key</h3>
+                    <div class="input-group-row">
+                        <select id="new-key-type" class="select-input">
+                            <option value="free">Free Tier</option>
+                            <option value="paid">Paid Tier</option>
+                        </select>
+                        <input type="number" id="new-key-expiry" placeholder="Days (Empty = Forever)"
+                            class="text-input">
+                        <button id="create-key-btn" class="btn-primary">GENERATE</button>
+                    </div>
+                    <div id="new-key-result" class="result-box"></div>
+                </div>
+            </div>
+
+            <div class="keys-table-wrapper">
+                <h3>Active Keys</h3>
+                <table class="keys-table">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Type</th>
+                            <th>Uses</th>
+                            <th>HWID</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-key-list">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <footer>
             <p>&copy; 2026 Gateway Solver. All rights reserved.</p>
         </footer>
@@ -76,6 +118,14 @@
         const hwidDisplay = document.getElementById('hwid-status');
         const usageCode = document.getElementById('usage-code');
         const delayHint = document.getElementById('delay-hint');
+
+        // Admin Elements
+        const adminSection = document.getElementById('admin-section');
+        const adminKeyList = document.getElementById('admin-key-list');
+        const createKeyBtn = document.getElementById('create-key-btn');
+        const newKeyType = document.getElementById('new-key-type');
+        const newKeyExpiry = document.getElementById('new-key-expiry');
+        const newKeyResult = document.getElementById('new-key-result');
 
         function setCookie(name, value, days) {
             let expires = "";
@@ -111,10 +161,108 @@
             location.reload();
         });
 
+        // Admin Functions
+        async function loadAdminDashboard(secret) {
+            try {
+                const r = await fetch('/admin/keys', {
+                    headers: { 'Admin-Secret': secret }
+                });
+                if (r.status === 401) return; // Not admin
+
+                const keys = await r.json();
+
+                // Show Admin Section
+                if (adminSection) adminSection.style.display = 'block';
+
+                renderKeysTable(keys, secret);
+
+            } catch (e) {
+                console.error("Admin check failed", e);
+            }
+        }
+
+        function renderKeysTable(keys, secret) {
+            if (!adminKeyList) return;
+            adminKeyList.innerHTML = '';
+
+            Object.entries(keys).forEach(([key, data]) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="mono">${key}</td>
+                    <td><span class="badge ${data.type}">${data.type.toUpperCase()}</span></td>
+                    <td>${data.uses || 0}</td>
+                    <td>
+                        <span class="${data.hwid ? 'status-locked' : 'status-unlocked'}">
+                            ${data.hwid ? 'LOCKED' : 'UNLOCKED'}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="resetHWID('${key}', '${secret}')" class="btn-xs btn-outline">RESET HWID</button>
+                        <button onclick="deleteKey('${key}', '${secret}')" class="btn-xs btn-danger">DELETE</button>
+                    </td>
+                `;
+                adminKeyList.appendChild(tr);
+            });
+        }
+
+        window.resetHWID = async (key, secret) => {
+            if (!confirm('Reset HWID for this key?')) return;
+            const r = await fetch('/admin/keys/reset_hwid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Admin-Secret': secret },
+                body: JSON.stringify({ key })
+            });
+            const data = await r.json();
+            if (data.success) {
+                alert('HWID Reset!');
+                loadAdminDashboard(secret);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        };
+
+        window.deleteKey = async (key, secret) => {
+            if (!confirm('Delete this key permanently?')) return;
+            const r = await fetch('/admin/keys/delete', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json', 'Admin-Secret': secret },
+                body: JSON.stringify({ key })
+            });
+            const data = await r.json();
+            if (data.success) {
+                loadAdminDashboard(secret);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        };
+
+        if (createKeyBtn) {
+            createKeyBtn.addEventListener('click', async () => {
+                const secret = getCookie('api_key');
+                const type = newKeyType.value;
+                const expiry = newKeyExpiry.value ? parseInt(newKeyExpiry.value) * 86400 : null; // days to seconds
+
+                const r = await fetch('/admin/keys/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Admin-Secret': secret },
+                    body: JSON.stringify({ type, expires_in: expiry })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    newKeyResult.innerHTML = `Created: <span class="mono">${data.key}</span>`;
+                    loadAdminDashboard(secret);
+                }
+            });
+        }
+
         // Simple check to show current key status if present
         const currentKey = getCookie('api_key');
         if (currentKey) {
             usageCode.innerText = `GET /solve?key=${currentKey}`;
+
+            // Try Admin Load
+            loadAdminDashboard(currentKey);
+
             fetch('/validate')
                 .then(r => r.json())
                 .then(data => {

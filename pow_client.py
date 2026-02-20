@@ -1,5 +1,5 @@
 """
-pow_client.py  —  platorelay PoW multi-stage shape captcha solver
+pow_client.py  â€”  platorelay PoW multi-stage shape captcha solver
 
 Env vars:
   WAIT_MS=3000        ms before verify (default 3000)
@@ -51,9 +51,9 @@ COLOR_KEYWORDS = ["red", "orange", "yellow", "green", "blue",
 _POLY_ORDER    = ["triangle", "square", "rectangle", "pentagon", "hexagon", "heptagon"]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Telemetry / fingerprint generation
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _gen_fingerprint() -> str:
     """
@@ -108,7 +108,7 @@ def _gen_path(dwell_ms: float) -> dict:
     """
     Generate click path matching real verify payload:
     - moves=1, totalDist=0, avgSpeed=0 (single click, no drag)
-    - clickTimestamp ≈ dwellMs (click happens at end of dwell)
+    - clickTimestamp â‰ˆ dwellMs (click happens at end of dwell)
     """
     click_ts = round(dwell_ms - random.uniform(2, 10), 1)
 
@@ -122,14 +122,17 @@ def _gen_path(dwell_ms: float) -> dict:
     }
 
 
-def _gen_verify_meta(num_stages: int) -> tuple:
+def _gen_verify_meta(num_stages: int, dwell_hint_ms: float = None) -> tuple:
     """
     Returns (path, telemetry, fingerprint).
-    Verify dwell = time spent solving all stages (~20-70s total).
+    Verify dwell should roughly match solve time with small human-like padding.
     """
-    base_dwell  = random.uniform(15000, 25000)
-    extra_dwell = (num_stages - 1) * random.uniform(8000, 15000)
-    dwell_ms    = base_dwell + extra_dwell
+    if dwell_hint_ms is None:
+        dwell_ms = random.uniform(6000, 14000)
+    else:
+        pad = random.uniform(1500, 4000)
+        per_stage = random.uniform(2000, 4500)
+        dwell_ms = max(4000.0, dwell_hint_ms + pad + (num_stages - 1) * per_stage)
 
     # Verify moves: more samples since user solved multiple stages
     moves    = random.randint(200, 280)
@@ -141,7 +144,7 @@ def _gen_verify_meta(num_stages: int) -> tuple:
 
 def _gen_request_telemetry() -> dict:
     """
-    Pre-puzzle telemetry for /request — short dwell (2-5s), fewer moves.
+    Pre-puzzle telemetry for /request â€” short dwell (2-5s), fewer moves.
     Matches real example: dwellMs=3086, moves=60, moveDensity=51.43
     """
     dwell_ms = random.uniform(2000, 6000)
@@ -149,9 +152,9 @@ def _gen_request_telemetry() -> dict:
     return _gen_telemetry(dwell_ms, moves)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Network
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def load_json(path: str, fallback: dict):
     if path and os.path.exists(path):
@@ -160,17 +163,34 @@ def load_json(path: str, fallback: dict):
     return fallback
 
 
-def send(opener, url: str, payload: dict, headers: dict):
+def send(opener, url: str, payload: dict, headers: dict, retries: int = 4):
+    """
+    POST with small retry/backoff to ride out transient refusals/timeouts.
+    """
     body = json.dumps(payload, separators=(",", ":")).encode()
     h    = {**headers, "Content-Length": str(len(body))}
     req  = urllib.request.Request(url, data=body, headers=h, method="POST")
-    with opener.open(req, timeout=30) as resp:
-        raw = resp.read()
+
+    backoff = 0.75
+    last_exc = None
+    for attempt in range(retries + 1):
         try:
-            p = json.loads(raw)
-            return resp.status, resp.reason, json.dumps(p, indent=2), p
-        except Exception:
-            return resp.status, resp.reason, raw.decode("utf-8", errors="replace"), None
+            with opener.open(req, timeout=30) as resp:
+                raw = resp.read()
+                try:
+                    p = json.loads(raw)
+                    return resp.status, resp.reason, json.dumps(p, indent=2), p
+                except Exception:
+                    return resp.status, resp.reason, raw.decode("utf-8", errors="replace"), None
+        except urllib.error.URLError as e:
+            last_exc = e
+            if attempt < retries:
+                # jitter to avoid sync with server throttling
+                time.sleep(backoff + random.uniform(0, 0.35))
+                backoff *= 1.6
+                continue
+            raise
+    raise last_exc
 
 
 def _scrub(obj):
@@ -182,9 +202,9 @@ def _scrub(obj):
     return obj
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Instruction parsing
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _parse_instruction(instruction: str):
     instr        = instruction.lower()
@@ -245,9 +265,9 @@ def _type_confidence(detected: str, target: str) -> float:
     return 0.0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Stage solver
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def solve_stage(stage: Dict[str, Any], stage_idx: int) -> str:
     instruction = stage.get("instruction") or ""
@@ -280,14 +300,19 @@ def solve_stage(stage: Dict[str, Any], stage_idx: int) -> str:
             vis["area"]  = _json_area(s)
             vis["type"]  = s.get("type", vis.get("type", "unknown"))
             vis["color"] = s.get("color", vis.get("color", "unknown"))
+        if "solidity" not in vis:
+            # derive solidity if possible
+            ha = vis.get("hull_area") or vis.get("bbox_area") or vis.get("area") or 1.0
+            aa = vis.get("area") or 0.0
+            vis["solidity"] = float(aa) / float(ha) if ha else 0.0
+        # Keep a reference to JSON-provided hints for later matching
+        vis["json_type"]  = s.get("type", "")
+        vis["json_color"] = s.get("color", "")
         s["visual"] = vis
 
         if os.environ.get("COLLECT_DATASET"):
             visual_verification.save_to_dataset(b64, vis, instruction)
 
-    # Only save images if explicitly requested via env var
-    if os.environ.get("DEBUG_SAVE") == "1":
-        os.makedirs("debug_captchas", exist_ok=True)
         try:
             import base64 as _b64
             raw      = b64.split(",")[1] if "," in b64 else b64
@@ -310,23 +335,32 @@ def solve_stage(stage: Dict[str, Any], stage_idx: int) -> str:
               f"area={vis['area']:>7.0f}  hull={vis.get('hull_area',0):>7.0f}  "
               f"v={vis['vertices']}  c={vis.get('circularity',0):.2f}  {mark}")
 
+    def _matches_type(s):
+        """Allow match on visual OR JSON-provided type to rescue misclassifications."""
+        vis_type  = s.get("visual", {}).get("type", "")
+        json_type = s.get("type", "")
+        types = [t for t in (vis_type, json_type) if t]
+        return any(_type_matches_strict(t, target_type) for t in types)
+
     # Filter
     if target_type:
-        candidates = [s for s in shapes
-                      if _type_matches_strict(s.get("visual", {}).get("type", ""), target_type)]
+        candidates = [s for s in shapes if _matches_type(s)]
     else:
         candidates = list(shapes)
 
     if target_color and candidates:
-        cc = [s for s in candidates
-              if s.get("visual", {}).get("color", "unknown") in ("unknown", target_color)]
+        def _shape_color(s):
+            vis_c  = s.get("visual", {}).get("color", "unknown")
+            json_c = s.get("color", "unknown")
+            return vis_c if vis_c != "unknown" else json_c
+        cc = [s for s in candidates if _shape_color(s) in ("unknown", target_color)]
         if cc:
             candidates = cc
         else:
-            print(f"  [Filter] No color={target_color!r} — dropping color filter")
+            print(f"  [Filter] No color={target_color!r} â€” dropping color filter")
 
     if not candidates:
-        print(f"  [Filter] No strict match — using all shapes")
+        print(f"  [Filter] No strict match â€” using all shapes")
         candidates = list(shapes)
 
     print(f"  [Filter] {len(candidates)}/{len(shapes)} candidates")
@@ -334,15 +368,22 @@ def solve_stage(stage: Dict[str, Any], stage_idx: int) -> str:
     # Filter out invalid shapes (no_contour, error, noise, area=0)
     # This acts as a safety net so we don't pick empty images or dust.
     def is_valid_shape(c):
-        vt = c.get("visual", {}).get("type", "")
-        va = c.get("visual", {}).get("area", 0)
-        vv = c.get("visual", {}).get("vertices", 0)
-        if vt in ("no_contour", "error", "unknown-noise"):
+        vis   = c.get("visual", {})
+        vt    = vis.get("type", "")
+        va    = vis.get("area", 0)
+        vv    = vis.get("vertices", 0)
+        jt    = c.get("type", "")
+        sol   = vis.get("solidity", 1.0)
+        # Allow JSON-typed candidates even if visual thinks it's noise
+        if vt in ("no_contour", "error", "unknown-noise") and not (jt and _type_matches_strict(jt, target_type or jt)):
             return False
         if va <= 0 and _json_area(c) <= 0:
             return False
-        if va < 800 and vv <= 2:
+        if va < 800 and vv <= 2 and not (jt and _matches_type(c)):
             return False  # speck / dust
+        # Reject very low solidity unless JSON explicitly matches target (likely a border box)
+        if target_type and sol < 0.45 and not (jt and _matches_type(c)):
+            return False
         return True
 
     if target_type:
@@ -360,16 +401,19 @@ def solve_stage(stage: Dict[str, Any], stage_idx: int) -> str:
 
     def _effective_area(s):
         vis = s.get("visual", {})
-        # use hull_area > bbox_area > area > json_area
+        sol = vis.get("solidity", 1.0)
+        # use hull_area > bbox_area > area > json_area, but scale by solidity to penalize loose hulls
         for k in ("hull_area", "bbox_area", "area"):
             v = vis.get(k)
             if isinstance(v, (int, float)) and v > 0:
-                return float(v)
+                return float(v) * max(0.4, min(sol, 1.0))
         ja = _json_area(s)
-        return float(ja) if ja > 0 else 0.0
+        return float(ja) * max(0.4, min(sol, 1.0)) if ja > 0 else 0.0
 
     def _conf(s):
-        return _type_confidence(s.get("visual", {}).get("type", ""), target_type)
+        vis_t  = s.get("visual", {}).get("type", "")
+        json_t = s.get("type", "")
+        return max(_type_confidence(vis_t, target_type), _type_confidence(json_t, target_type))
 
     if target_type:
         # 1) If any exact/very-high confidence matches exist, pick among them by area.
@@ -401,136 +445,139 @@ def solve_stage(stage: Dict[str, Any], stage_idx: int) -> str:
     return str(chosen_idx)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Main
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-def solve_captcha(opener=None, fingerprint=None) -> str:
-    """
-    Solve a PoW puzzle and return the resulting token on success.
-    Returns None if it fails.
-    """
-    if opener is None:
-        import http.cookiejar as _hcj
+def main():
+    import http.cookiejar as _hcj
+
+    max_attempts = int(os.environ.get("MAX_ATTEMPTS", "5"))
+
+    for attempt in range(1, max_attempts + 1):
+        print(f"\n=== Attempt {attempt}/{max_attempts} ===")
+
         cj     = _hcj.CookieJar()
         opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 
-    # ── Fingerprint generation/reuse ─────────────────────────────────────────
-    if fingerprint is None:
-        saved_fp   = load_json("payload_verify.json", {}).get("deviceFingerprint", "")
-        fingerprint = saved_fp if saved_fp else _gen_fingerprint()
-    
-    print(f"[+] deviceFingerprint: {fingerprint}")
+        # Fingerprint per attempt (reuse saved only on first try if explicitly requested)
+        saved_fp    = load_json("payload_verify.json", {}).get("deviceFingerprint", "")
+        reuse_saved = os.environ.get("REUSE_FP", "").lower() in ("1", "true", "yes")
+        fingerprint = (saved_fp if (reuse_saved and saved_fp and attempt == 1)
+                       else _gen_fingerprint())
+        print(f"[+] deviceFingerprint: {fingerprint}")
 
-    # ── 1. Request ───────────────────────────────────────────────────────────
-    req_pl = {
-        "telemetry":       _gen_request_telemetry(),
-        "deviceFingerprint": fingerprint,
-        "forcePuzzle":     False,
-    }
+        # Small stagger to avoid server rate throttling on consecutive attempts
+        time.sleep(random.uniform(0.4, 0.9))
 
-    try:
-        status, reason, body, parsed = send(opener, REQUEST_URL, req_pl, BASE_HEADERS)
-        print(f"REQUEST -> {status} {reason}")
-    except urllib.error.HTTPError as e:
-        print(f"REQUEST HTTP {e.code}: {e.reason}")
-        print(e.read().decode("utf-8", errors="replace")); return None
-    except Exception:
-        import traceback; traceback.print_exc(); return None
+        # 1) Request
+        req_pl = {
+            "telemetry":         _gen_request_telemetry(),
+            "deviceFingerprint": fingerprint,
+            "forcePuzzle":       False,
+        }
 
-    if os.environ.get("DUMP_REQUEST"):
-        print(json.dumps(_scrub(parsed), indent=2) if parsed else body)
+        try:
+            status, reason, body, parsed = send(opener, REQUEST_URL, req_pl, BASE_HEADERS)
+            print(f"REQUEST -> {status} {reason}")
+        except urllib.error.HTTPError as e:
+            print(f"REQUEST HTTP {e.code}: {e.reason}")
+            print(e.read().decode("utf-8", errors="replace"))
+            continue
+        except Exception:
+            import traceback; traceback.print_exc()
+            continue
 
-    if not parsed or not parsed.get("success"):
-        print("Request failed:\n", body); return None
+        if os.environ.get("DUMP_REQUEST"):
+            print(json.dumps(_scrub(parsed), indent=2) if parsed else body)
 
-    data      = parsed.get("data", {})
-    puzzle_id = data.get("id")
-    if not puzzle_id:
-        print("ERROR: no id in response"); return None
+        if not parsed or not parsed.get("success"):
+            print("Request failed:\n", body)
+            continue
 
-    print(f"[+] id:    {puzzle_id}")
-    print(f"[+] mode:  {data.get('mode')}")
+        data      = parsed.get("data", {})
+        puzzle_id = data.get("id")
+        if not puzzle_id:
+            print("ERROR: no id in response")
+            continue
 
-    # ── 2. Collect stages ────────────────────────────────────────────────────
-    stages: List[Dict[str, Any]] = data.get("stages") or []
-    if not stages:
-        puzzle = data.get("puzzle")
-        if puzzle:
-            stages = [puzzle]
-    if not stages:
-        print("ERROR: no stages in response"); return None
+        print(f"[+] id:    {puzzle_id}")
+        print(f"[+] mode:  {data.get('mode')}")
 
-    print(f"[+] Stages: {len(stages)}")
-    for i, st in enumerate(stages):
-        print(f"    Stage {i}: \"{st.get('instruction')}\"  "
-              f"({len(st.get('shapes') or [])} shapes)")
+        # 2) Collect stages
+        stages: List[Dict[str, Any]] = data.get("stages") or []
+        if not stages:
+            puzzle = data.get("puzzle")
+            if puzzle:
+                stages = [puzzle]
+        if not stages:
+            print("ERROR: no stages in response")
+            continue
 
-    # ── 3. Solve ─────────────────────────────────────────────────────────────
-    answers: List[str] = []
-    for i, stage in enumerate(stages):
-        answers.append(solve_stage(stage, i))
+        print(f"[+] Stages: {len(stages)}")
+        for i, st in enumerate(stages):
+            print(f"    Stage {i}: \"{st.get('instruction')}\"  "
+                  f"({len(st.get('shapes') or [])} shapes)")
 
-    print(f"\n[+] Answers: {answers}")
+        # 3) Solve
+        answers: List[str] = []
+        solve_t0 = time.time()
+        for i, stage in enumerate(stages):
+            answers.append(solve_stage(stage, i))
 
-    # ── 4. Build verify payload — same fingerprint as /request ───────────────
-    path, telemetry = _gen_verify_meta(len(stages))
+        print(f"\n[+] Answers: {answers}")
 
-    ver_pl = {
-        "id":                puzzle_id,
-        "answers":           answers,
-        "path":              path,
-        "telemetry":         telemetry,
-        "deviceFingerprint": fingerprint,   # ← same as /request
-    }
+        # 4) Build verify payload — same fingerprint as /request
+        dwell_hint = (time.time() - solve_t0) * 1000.0
+        path, telemetry = _gen_verify_meta(len(stages), dwell_hint_ms=dwell_hint)
 
-    print(f"\n[Telemetry] dwellMs={telemetry['dwellMs']}  "
-          f"moves={telemetry['moves']}  "
-          f"velocityAvg={telemetry['velocityAvg']:.4f}  "
-          f"moveDensity={telemetry['moveDensity']:.4f}")
-    print(f"[Path]      clickTimestamp={path['clickTimestamp']}  "
-          f"durationMs={path['durationMs']}  "
-          f"totalDist={path['totalDist']}")
+        ver_pl = {
+            "id":                puzzle_id,
+            "answers":           answers,
+            "path":              path,
+            "telemetry":         telemetry,
+            "deviceFingerprint": fingerprint,
+        }
 
-    wait_ms = float(os.environ.get("WAIT_MS", "1500"))
-    if wait_ms > 0:
-        print(f"\nWaiting {int(wait_ms)} ms ...")
-        time.sleep(wait_ms / 1000.0)
+        print(f"\n[Telemetry] dwellMs={telemetry['dwellMs']}  "
+              f"moves={telemetry['moves']}  "
+              f"velocityAvg={telemetry['velocityAvg']:.4f}  "
+              f"moveDensity={telemetry['moveDensity']:.4f}")
+        print(f"[Path]      clickTimestamp={path['clickTimestamp']}  "
+              f"durationMs={path['durationMs']}  "
+              f"totalDist={path['totalDist']}")
 
-    print(f"\n[PAYLOAD] {json.dumps(ver_pl, separators=(',',':'))}")
+        wait_ms = float(os.environ.get("WAIT_MS", "800"))
+        if wait_ms > 0:
+            print(f"\nWaiting {int(wait_ms)} ms ...")
+            time.sleep(wait_ms / 1000.0)
 
-    # ── 5. Verify ────────────────────────────────────────────────────────────
-    try:
-        status, reason, body, pv = send(opener, VERIFY_URL, ver_pl, BASE_HEADERS)
-        print(f"\nVERIFY -> {status} {reason}")
-        print(body)
-        if pv and pv.get("success") is True:
-            print("\nOK  CAPTCHA SOLVED!")
-            token = pv.get("data", {}).get("token")
-            return token
+        print(f"\n[PAYLOAD] {json.dumps(ver_pl, separators=(',',':'))}")
+
+        try:
+            status, reason, body, pv = send(opener, VERIFY_URL, ver_pl, BASE_HEADERS)
+            print(f"\nVERIFY -> {status} {reason}")
+            print(body)
+            if pv and pv.get("success") is True:
+                print("\nOK  CAPTCHA SOLVED!")
+                return
+            else:
+                token = (pv or {}).get("token") or (pv or {}).get("data", {}).get("token")
+                if token:
+                    print(f"   Token: {token}")
+                print("\nNO  Wrong.")
+        except urllib.error.HTTPError as e:
+            print(f"\nVERIFY HTTP {e.code}: {e.reason}")
+            print(e.read().decode("utf-8", errors="replace"))
+        except Exception:
+            import traceback; traceback.print_exc()
+
+        if attempt < max_attempts:
+            print("\n[Retry] Requesting a fresh captcha (do not re-verify the same one)...")
+            time.sleep(0.5)
+            continue
         else:
-            print("\nNO  Wrong. Check debug_captchas/ PNGs.")
-            token = (pv or {}).get("token") or (pv or {}).get("data", {}).get("token")
-            if token:
-                print(f"   Token: {token}")
-                return token
-            return None
-    except urllib.error.HTTPError as e:
-        print(f"\nVERIFY HTTP {e.code}: {e.reason}")
-        print(e.read().decode("utf-8", errors="replace"))
-        return None
-    except Exception:
-        import traceback; traceback.print_exc()
-        return None
-
-
-def main():
-    token = solve_captcha()
-    if token:
-        print(f"\n[SUCCESS] Token: {token}")
-    else:
-        print("\n[FAILURE] Failed to solve captcha.")
-
+            print("\n[Abort] Max attempts reached; stopping.")
 
 if __name__ == "__main__":
     import sys
@@ -542,9 +589,6 @@ if __name__ == "__main__":
             self.file = open(name, mode, encoding='utf-8')
             self.stdout = sys.stdout
         def write(self, data):
-            # Handle potential bytes
-            if isinstance(data, bytes):
-                data = data.decode('utf-8', errors='replace')
             self.file.write(data)
             self.stdout.write(data)
             self.file.flush()
@@ -555,7 +599,7 @@ if __name__ == "__main__":
             
     sys.stdout = Tee("run.log", "w")
     
-    # Force unbuffered stdout
+    # Force unbuffered stdout (already handled by flush in Tee, but good measure)
     try:
         sys.stdout.reconfigure(encoding='utf-8')
     except:

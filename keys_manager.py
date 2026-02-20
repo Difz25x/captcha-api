@@ -80,6 +80,14 @@ def delete_key(key: str) -> bool:
         return True
     return False
 
+def reset_hwid(key: str) -> bool:
+    keys = _load_keys()
+    if key in keys:
+        keys[key]["hwid"] = None
+        _save_keys(keys)
+        return True
+    return False
+
 def get_all_keys() -> Dict:
     """Returns all keys (for admin use)"""
     return _load_keys()

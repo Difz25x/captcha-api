@@ -135,6 +135,20 @@ def delete_key_route():
     success = keys_manager.delete_key(key)
     return jsonify({"success": success})
 
+@app.route('/admin/keys/reset_hwid', methods=['POST'])
+def reset_hwid_route():
+    secret = request.headers.get('Admin-Secret')
+    if secret != ADMIN_SECRET:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    data = request.json or {}
+    key = data.get('key')
+    if not key:
+        return jsonify({"success": False, "error": "Key required"}), 400
+    
+    success = keys_manager.reset_hwid(key)
+    return jsonify({"success": success})
+
 @app.route('/validate', methods=['GET'])
 def validate():
     """

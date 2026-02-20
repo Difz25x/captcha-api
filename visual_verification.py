@@ -357,12 +357,22 @@ def _classify(cnt: np.ndarray) -> tuple:
     if vertices == 3:
         shape = "triangle"
     elif vertices == 4:
-        # Check if it's actually a circle (high circularity) misclassified as square due to coarse polyDP
-        if circularity > 0.82:
-             shape = "circle"
+        x, y, bw, bh = cv2.boundingRect(cnt)
+        ar        = float(bw) / bh if bh else 1.0
+        bbox_area = float(bw * bh) if bw and bh else 1.0
+        fill_ratio = area / bbox_area if bbox_area > 0 else 0.0  # circle ≈0.78, square ≈1.0
+
+        # Circle detection for 4-point approximations:
+        # - very round (circularity/hull_circ high) OR
+        # - low fill ratio vs bounding box (typical for circles)
+        looks_circle = (
+            (circularity > 0.88 and hull_circ > 0.88 and fill_ratio < 0.90) or
+            (fill_ratio < 0.83 and circularity > 0.82)
+        )
+
+        if looks_circle:
+            shape = "circle"
         else:
-            x, y, bw, bh = cv2.boundingRect(cnt)
-            ar    = float(bw) / bh if bh else 1.0
             shape = "square" if 0.78 <= ar <= 1.28 else "rectangle"
     elif vertices == 5:
         shape = "pentagon"
@@ -397,7 +407,7 @@ def _classify(cnt: np.ndarray) -> tuple:
     # Stars have low circularity (high perimeter). Exempt them!
     if shape == "star":
         pass # Stars are allowed low circularity
-    elif vertices >= 3 and circularity < 0.35:
+    elif vertices >= 3 and circularity < 0.25:
          return "unknown-noise", 0, circularity
 
 
@@ -468,6 +478,7 @@ def analyze_shape(b64_string: str) -> dict:
 
         hull      = cv2.convexHull(cnt)
         hull_area = float(cv2.contourArea(hull))
+        solidity  = float(area / hull_area) if hull_area > 0 else 0.0
 
         x, y, bw, bh = cv2.boundingRect(cnt)
         bbox_area    = float(bw * bh)
@@ -485,6 +496,7 @@ def analyze_shape(b64_string: str) -> dict:
             type        = shape,
             vertices    = vertices,
             circularity = float(circularity),
+            solidity    = solidity,
             color       = color,
         )
 
