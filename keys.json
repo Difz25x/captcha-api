@@ -1,14 +1,14 @@
 {
     "d440e12c084b2a8d14142716697803f7": {
         "type": "free",
-        "hwid": "40650f7f4f53dee2",
+        "hwid": "",
         "created_at": 1771564446.2508743,
         "expires_at": null,
         "uses": 2
     },
     "71d787824abd849c0decfcc97e90fe6d": {
         "type": "paid",
-        "hwid": "40650f7f4f53dee2",
+        "hwid": "",
         "created_at": 1771564446.3503585,
         "expires_at": null,
         "uses": 4
